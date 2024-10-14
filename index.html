@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RSS Previewer</title>
+	<style>
+		html {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+			font-size: 18px;
+			color: #24292e;
+		}
+	</style>
+</head>
+<body>
+	<script src="https://unpkg.com/@rgrove/parse-xml@4.1.0/dist/global.min.js"></script>
+	<script>
+		(async() => {
+			const url = new URL(document.location).searchParams.get('url')
+			if (!url) {
+				throw new TypeError(`define a url in the querystring.  E.g. ?url=https://www.comicsrss.com/rss/calvinandhobbes.rss`)
+			}
+			const res = await fetch(url)
+			const xml = await res.text()
+			const parsed = parseXml(xml)
+
+			const channel = parsed.children[0].children.find(c => c.name === `channel`)
+			const items = channel.children.filter(c => c.name === `item`).map(item => ({
+				title: item.children.find(c => c.name === `title`).children[0].text,
+				link: item.children.find(c => c.name === `link`).children[0].text,
+				pubDate: item.children.find(c => c.name === `pubDate`).children[0].text,
+				description: item.children.find(c => c.name === `description`).children[0].text,
+			}))
+
+			// https://stackoverflow.com/a/6234804
+			function escapeHtml(unsafe) {
+				return unsafe
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/"/g, "&quot;")
+					.replace(/'/g, "&#039;")
+			}
+
+			const html = items.map(item => `
+				<h2>${escapeHtml(item.title)}</h2>
+				<time><a href=${escapeHtml(item.link)}>${escapeHtml(item.pubDate)}</a></time>
+				<article>${item.description}</article>
+			`).join(``)
+
+			const div = document.createElement('div')
+			div.innerHTML = html
+			document.body.appendChild(div)
+		})()
+	</script>
+</body>
+</html>
